@@ -29,11 +29,11 @@ var (
 	lagThreshold      = flag.Int("lagThreshold", 1000, "alarm lag threshold for partition")
 	totalLagThreshold = flag.Int("totalLagThreshold", 5000, "alarm total lag threshold for topic")
 	interval          = flag.Duration("duration", time.Minute, "check interval time")
-	informEmail       = flag.String("email", "yuepan@staff.weibo.com", "inform user email")
-	smtpHost          = flag.String("stmp.host", "smtp.sina.com", "smtp host for sending alarms")
-	smtpPort          = flag.Int("stmp.port", 25, "smtp port for sending alarms")
-	smtpUser          = flag.String("stmp.user", "kafka_monitor", "smtp user for sending alarms")
-	smtpPassword      = flag.String("stmp.password", "xxxxxx", "smtp user password for sending alarms")
+	informEmail       = flag.String("email", "xxx@xxxxxx.com", "inform user email")
+	smtpHost          = flag.String("smtp.host", "smtp.sina.com", "smtp host for sending alarms")
+	smtpPort          = flag.Int("smtp.port", 25, "smtp port for sending alarms")
+	smtpUser          = flag.String("smtp.user", "kafka_monitor", "smtp user for sending alarms")
+	smtpPassword      = flag.String("smtp.password", "xxxxxx", "smtp user password for sending alarms")
 )
 
 var (
