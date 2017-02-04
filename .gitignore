@@ -1,0 +1,14 @@
+*.o
+*.a
+*.so
+
+_obj
+_test
+
+run.sh
+
+*.exe
+*.test
+*.prof
+
+vendor
