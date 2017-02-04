@@ -12,7 +12,7 @@ func alert(informEmail string, brokers string, topic string, content []byte,
 	m.SetHeader("From", "kafka_monitor@sina.com")
 	m.SetHeader("To", informEmail)
 	m.SetHeader("Subject", fmt.Sprintf("Alarm: topic=%s, brokers: %s", topic, brokers))
-	m.SetBody("text/html", string(content))
+	m.SetBody("text/plain", string(content))
 
 	d := gomail.NewDialer(smtpHost, smtpPort, smtpUser, smtpPassword)
 	if err := d.DialAndSend(m); err != nil {

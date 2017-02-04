@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -119,9 +120,13 @@ func check() {
 			table.SetHeader([]string{"partition", "leader address", "leader", "replicas", "isr"})
 			for _, info := range infos {
 				replicas := fmt.Sprintf("%v", info.Replicas)
-				table.Append([]string{strconv.Itoa(int(info.Partition)), info.LeaderAddress, strconv.Itoa(int(info.Leader)), replicas, info.Isr})
+				replicas = replicas[1 : len(replicas)-1]
+				replicas = compareString(replicas)
+				isr := compareString(info.Isr)
 
-				if replicas != info.Isr {
+				table.Append([]string{strconv.Itoa(int(info.Partition)), info.LeaderAddress, strconv.Itoa(int(info.Leader)), "[" + replicas + "]", "[" + isr + "]"})
+
+				if replicas != isr {
 					maybeProblem = true
 				}
 			}
@@ -172,6 +177,12 @@ func check() {
 	}
 }
 
+func compareString(s string) string {
+	s1 := strings.Split(s, " ")
+	sort.Sort(sort.StringSlice(s1))
+
+	return strings.Join(s1, " ")
+}
 func convertLag(lag int64, threshold int) string {
 	lagStr := strconv.Itoa(int(lag))
 	if int(lag) > threshold {
