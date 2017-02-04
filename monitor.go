@@ -101,10 +101,12 @@ func check() {
 			maybeProblem = true
 		}
 
-		fmt.Printf("Time: %s\n", time.Now().Format("2006-01-02 15:04:05"))
-		fmt.Printf("Brokers: %s\nVersion: %s\n", color.GreenString(*brokers), color.GreenString(*version))
-		fmt.Printf("Topic: %s, Group: %s, Partitions: %s\n\n",
-			color.GreenString(*topic), color.GreenString(*group), color.GreenString(strconv.Itoa(len(partitions))))
+		buf.WriteString(fmt.Sprintf("Time: %s\n", time.Now().Format("2006-01-02 15:04:05")))
+		buf.WriteString(fmt.Sprintf("Brokers: %s\nVersion: %s\n", color.GreenString(*brokers), color.GreenString(*version)))
+		buf.WriteString(fmt.Sprintf("Topic: %s, Group: %s, Partitions: %s\n\n",
+			color.GreenString(*topic), color.GreenString(*group), color.GreenString(strconv.Itoa(len(partitions)))))
+
+		fmt.Println(string(buf.Bytes()))
 
 		//partition info
 		var c *zk.Conn
