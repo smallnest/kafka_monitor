@@ -5,7 +5,8 @@
 _obj
 _test
 
-run.sh
+*.sh
+monitor
 
 *.exe
 *.test

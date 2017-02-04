@@ -15,9 +15,12 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
+	"github.com/samuel/go-zookeeper/zk"
 )
 
 var (
+	zkAddr            = flag.String("zkAddr", "", "zookeeper address")
+	basePath          = flag.String("basePath", "/kafka", "kafka base path in zookeeper")
 	brokers           = flag.String("brokers", "localhost:9092", "brokers' address")
 	topic             = flag.String("topic", "trigger", "topic name")
 	group             = flag.String("group", "default", "consumer group name")
@@ -63,12 +66,8 @@ func main() {
 func check() {
 	defer func() {
 		if r := recover(); r != nil {
-			var ok bool
-			err, ok := r.(error)
-			if !ok {
-				fmt.Printf("check error: %v", err)
-				alert(*informEmail, *brokers, *topic, []byte(err.Error()), *smtpHost, *smtpPort, *smtpUser, *smtpPassword)
-			}
+			fmt.Printf("check error: %v", r)
+			alert(*informEmail, *brokers, *topic, []byte(fmt.Sprintf("%v", r)), *smtpHost, *smtpPort, *smtpUser, *smtpPassword)
 		}
 	}()
 
@@ -106,12 +105,25 @@ func check() {
 			color.GreenString(*topic), color.GreenString(*group), color.GreenString(strconv.Itoa(len(partitions))))
 
 		//partition info
-		infos := GetPartitionInfo(client, *topic, partitions)
+		var c *zk.Conn
+		if *zkAddr != "" {
+			c, _, err = zk.Connect(strings.Split(*zkAddr, ","), 5*time.Second)
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		infos := GetPartitionInfo(client, *topic, partitions, c, *basePath)
 		if len(infos) > 0 {
 			table := tablewriter.NewWriter(&buf)
-			table.SetHeader([]string{"partition", "leader address", "leader", "isr"})
+			table.SetHeader([]string{"partition", "leader address", "leader", "replicas", "isr"})
 			for _, info := range infos {
-				table.Append([]string{strconv.Itoa(int(info.Partition)), info.LeaderAddress, strconv.Itoa(int(info.Leader)), fmt.Sprintf("%v", info.Isr)})
+				replicas := fmt.Sprintf("%v", info.Replicas)
+				table.Append([]string{strconv.Itoa(int(info.Partition)), info.LeaderAddress, strconv.Itoa(int(info.Leader)), replicas, info.Isr})
+
+				if replicas != info.Isr {
+					maybeProblem = true
+				}
 			}
 
 			table.SetAlignment(tablewriter.ALIGN_LEFT)
