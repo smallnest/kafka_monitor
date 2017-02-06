@@ -67,6 +67,8 @@ func main() {
 
 func check() {
 	kafkaBrokers := strings.Split(*brokers, ",")
+	sort.Sort(sort.StringSlice(kafkaBrokers))
+
 	v := kafkaVersions[*version]
 	client := NewSaramaClient(kafkaBrokers, v)
 
@@ -100,6 +102,20 @@ func check() {
 	ticker := time.NewTicker(*interval)
 	for range ticker.C {
 		buf.Reset()
+
+		//check brokers change event
+		newKafkaBrokers := runtimeKafkaBrokers(client)
+		s1 := strings.Join(kafkaBrokers, ",")
+		s2 := strings.Join(newKafkaBrokers, ",")
+		if s1 != s2 {
+			subject := fmt.Sprintf("Broker changed: topic=%s, brokers: %s", *topic, *brokers)
+			alert(*informEmail, subject, []byte(fmt.Sprintf("prior brokers: %s \n current brokers: %s\n", s1, s2)), *smtpHost, *smtpPort, *smtpUser, *smtpPassword)
+
+			if len(newKafkaBrokers) > 0 {
+				kafkaBrokers = newKafkaBrokers
+			}
+		}
+
 		partitions, err := client.Partitions(*topic)
 		if err != nil {
 			fmt.Printf("failed to get partitions for topic=%s, err=%v\n", *topic, err)
@@ -212,6 +228,17 @@ func convertLag(lag int64, threshold int) string {
 	}
 
 	return lagStr
+}
+
+func runtimeKafkaBrokers(client sarama.Client) []string {
+	brokers := client.Brokers()
+	var fetchedBrokers []string
+	for _, b := range brokers {
+		fetchedBrokers = append(fetchedBrokers, b.Addr())
+	}
+
+	sort.Sort(sort.StringSlice(fetchedBrokers))
+	return fetchedBrokers
 }
 
 func NewSaramaClient(brokers []string, version sarama.KafkaVersion) sarama.Client {

@@ -32,7 +32,7 @@ ineffassign:
 	ineffassign .
 
 gocyclo:
-	@ gocyclo -over 20 $(shell find . -name "*.go" |egrep -v "pb\.go|_test\.go")
+	@ gocyclo -over 25 $(shell find . -name "*.go" |egrep -v "pb\.go|_test\.go")
 
 check: staticcheck gosimple unused ineffassign gocyclo
 
