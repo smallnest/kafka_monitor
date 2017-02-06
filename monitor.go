@@ -71,12 +71,15 @@ func check() {
 	client := NewSaramaClient(kafkaBrokers, v)
 
 	var buf bytes.Buffer
-
+	var err error
 	var c *zk.Conn
 
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("check error: %v", r)
+
+			bytes := buf.Bytes()
+			os.Stdout.Write(bytes)
 
 			client.Close()
 
@@ -86,7 +89,7 @@ func check() {
 	}()
 
 	if *zkAddr != "" {
-		c, _, err := zk.Connect(strings.Split(*zkAddr, ","), 5*time.Second)
+		c, _, err = zk.Connect(strings.Split(*zkAddr, ","), 30*time.Second)
 		if err != nil {
 			panic(err)
 		}
@@ -121,8 +124,6 @@ func check() {
 		buf.WriteString(fmt.Sprintf("Brokers: %s\nVersion: %s\n", color.GreenString(*brokers), color.GreenString(*version)))
 		buf.WriteString(fmt.Sprintf("Topic: %s, Group: %s, Partitions: %s\n\n",
 			color.GreenString(*topic), color.GreenString(*group), color.GreenString(strconv.Itoa(len(partitions)))))
-
-		fmt.Println(string(buf.Bytes()))
 
 		infos := GetPartitionInfo(client, *topic, partitions, c, *basePath)
 		if len(infos) > 0 {
