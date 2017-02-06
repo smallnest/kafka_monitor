@@ -113,6 +113,7 @@ func check() {
 
 			if len(newKafkaBrokers) > 0 {
 				kafkaBrokers = newKafkaBrokers
+				*brokers = s2
 			}
 		}
 
