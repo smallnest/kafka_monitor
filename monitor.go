@@ -38,8 +38,9 @@ var (
 
 var (
 	maybeProblem       = false
+	restored           = true
 	lastTriggeredTime  time.Time
-	mergeAlertDuration = 10 * time.Minute
+	mergeAlertDuration = 5 * time.Minute
 	kafkaVersions      = kafkaVersion()
 )
 
@@ -65,18 +66,33 @@ func main() {
 }
 
 func check() {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Printf("check error: %v", r)
-			alert(*informEmail, *brokers, *topic, []byte(fmt.Sprintf("%v", r)), *smtpHost, *smtpPort, *smtpUser, *smtpPassword)
-		}
-	}()
-
 	kafkaBrokers := strings.Split(*brokers, ",")
 	v := kafkaVersions[*version]
 	client := NewSaramaClient(kafkaBrokers, v)
 
 	var buf bytes.Buffer
+
+	var c *zk.Conn
+
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("check error: %v", r)
+
+			client.Close()
+
+			subject := fmt.Sprintf("Alarm: topic=%s, brokers: %s", *topic, *brokers)
+			alert(*informEmail, subject, []byte(fmt.Sprintf("%v", r)), *smtpHost, *smtpPort, *smtpUser, *smtpPassword)
+		}
+	}()
+
+	if *zkAddr != "" {
+		c, _, err := zk.Connect(strings.Split(*zkAddr, ","), 5*time.Second)
+		if err != nil {
+			panic(err)
+		}
+
+		defer c.Close()
+	}
 
 	ticker := time.NewTicker(*interval)
 	for range ticker.C {
@@ -107,15 +123,6 @@ func check() {
 			color.GreenString(*topic), color.GreenString(*group), color.GreenString(strconv.Itoa(len(partitions)))))
 
 		fmt.Println(string(buf.Bytes()))
-
-		//partition info
-		var c *zk.Conn
-		if *zkAddr != "" {
-			c, _, err = zk.Connect(strings.Split(*zkAddr, ","), 5*time.Second)
-			if err != nil {
-				panic(err)
-			}
-		}
 
 		infos := GetPartitionInfo(client, *topic, partitions, c, *basePath)
 		if len(infos) > 0 {
@@ -171,9 +178,20 @@ func check() {
 		bytes := buf.Bytes()
 		os.Stdout.Write(bytes)
 
+		//first issue check or ignore check exceeds mergeAlertDuration
 		if maybeProblem && time.Since(lastTriggeredTime) > mergeAlertDuration {
+			restored = false
 			lastTriggeredTime = time.Now()
-			alert(*informEmail, *brokers, *topic, bytes, *smtpHost, *smtpPort, *smtpUser, *smtpPassword)
+			subject := fmt.Sprintf("Alarm: topic=%s, brokers: %s", *topic, *brokers)
+			alert(*informEmail, subject, bytes, *smtpHost, *smtpPort, *smtpUser, *smtpPassword)
+		}
+
+		//fixed
+		if !maybeProblem && !restored {
+			subject := fmt.Sprintf("Fixed: topic=%s, brokers: %s", *topic, *brokers)
+			alert(*informEmail, subject, bytes, *smtpHost, *smtpPort, *smtpUser, *smtpPassword)
+			restored = true
+			lastTriggeredTime = time.Unix(0, 0)
 		}
 
 		maybeProblem = false
